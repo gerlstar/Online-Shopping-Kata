@@ -41,10 +41,14 @@ class Session
     public function saveAll() {
         foreach (array_keys($this->session) as $array_key) {
             /** @var ModelObject $entity */
+            // var_dump($array_key);
             $entity = $this->session[$array_key];
+            //  var_dump('ENTITY:',$entity);
             $entity->saveToDatabase();
         }
     }
+
+    
 
     /**
      * @return string

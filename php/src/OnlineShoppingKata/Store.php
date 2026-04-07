@@ -11,6 +11,7 @@ namespace App\OnlineShoppingKata;
  */
 class Store implements ModelObject
 {
+    private $address;
     private $itemsInStock = [];
     /**
      * @var string
@@ -27,10 +28,15 @@ class Store implements ModelObject
      * @param $name
      * @param $droneDelivery
      */
-    public function __construct($name, $droneDelivery)
+    public function __construct($name, $droneDelivery, string $address)
     {
         $this->name = $name;
         $this->droneDelivery = $droneDelivery;
+        $this->address = $address;
+    }
+
+    public function getAddress(): string{
+        return $this->address;
     }
 
     /**
@@ -38,10 +44,12 @@ class Store implements ModelObject
      */
     public function addStockedItems($items)
     {
-        foreach ($items as $item) {
-            /** @var Item $item */
-            $this->itemsInStock['name'] = $item;
-        }
+        $this->itemsInStock = $items;
+
+        // foreach ($items as $item) {
+        //     /** @var Item $item */
+        //     $this->itemsInStock['name'] = $item;
+        // }
     }
 
     /**
@@ -69,7 +77,13 @@ class Store implements ModelObject
      */
     public function hasItem(Item $item)
     {
-        return key_exists($item->getName(), $this->itemsInStock);
+        // var_dump($this->itemsInStock);
+        $result = array_filter($this->itemsInStock, function ($entry) use ($item) {
+            return $entry->getName() == $item->getName();
+        });
+
+        return count($result) > 0;
+        // return key_exists($item->getName(), $this->itemsInStock);
     }
 
     /**

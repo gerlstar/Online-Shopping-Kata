@@ -13,6 +13,33 @@ class Cart implements ModelObject
     private $items = [];
     private $unavailableItems = [];
 
+    private $deliveryInformation;
+
+    /**
+     * each cart is delivered somehow 
+     * (Home, pickup or shipping)
+     * @param $deliveryInformation
+     */
+    public function setDeliveryInformation($deliveryInformation)
+    {
+        $this->deliveryInformation = $deliveryInformation;
+    }
+
+    public function getTotalWeight()
+    {
+        $total = 0;
+        foreach ($this->items as $item) {
+            $total += $item->getWeight();
+        }
+
+        return $total;
+    }
+
+    public function getDeliveryInformation()
+    {
+        return $this->deliveryInformation;
+    }
+
     /**
      * @return Item[]|array
      */
@@ -87,5 +114,48 @@ class Cart implements ModelObject
     public function getUnavailableItems()
     {
         return $this->unavailableItems;
+    }
+
+    public function reduceWeight($weight)
+    {
+        foreach ($this->getUnavailableItems() as $unavailableItem) {
+            /** @var Item $unavailableItem */
+            $weight -= $unavailableItem->getWeight();
+        }
+        return $weight;
+    }
+
+    public function switchItems(int $weight, Store $newStore)
+    {
+
+        $newItems = [];
+
+
+
+        foreach ($this->getItems() as $item) {
+
+
+
+            /** @var Item $item */
+            if ($item instanceof StoreEvent && $newStore->hasItem($item)) {
+                // if ($item->getType() === "EVENT") {
+
+                $this->markAsUnavailable($item);
+                //put the $item in the new store
+                $newItems[] = $newStore->getItem($item->getName());
+            } else if ($item instanceof StoreEvent) {
+                $this->markAsUnavailable($item);
+            } else if (! $newStore->hasItem($item)) {
+
+                $this->markAsUnavailable($item);
+            }
+
+            $weight += $item->getWeight();
+        }
+
+        return [
+            'weight' => $weight,
+            'newItems' => $newItems,
+        ];
     }
 }

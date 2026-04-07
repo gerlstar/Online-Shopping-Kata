@@ -41,79 +41,109 @@ class OnlineShopping
      */
     public function switchStore(?Store $storeToSwitchTo = null)
     {
+        // die($this->session->get('CART'));
         /** @var Cart $cart */
-        $cart = $this->session["CART"];
-        $deliveryInformation = $this->session["DELIVERY_INFO"];
+        $cart = $this->session->get('CART') ?? null;
+        // die($this->session->get('DELIVERY_INFO') === undefined);
+
+        // if ($this->session->get('DELIVERY_INFO')){
+        $deliveryInformation = $this->session->get('DELIVERY_INFO');
+
+        // }
+
+        //no stores to switch to thus go to warehouse
         if ($storeToSwitchTo == null) {
-            if ($cart != null) {
-                foreach ($cart->getItems() as $item) {
-                    /** @var Item $item */
-                    if("EVENT" === $item->getType()) {
-                        $cart->markAsUnavailable($item);
-                    }
-                }
-            }
-            if ($deliveryInformation != null) {
-                /** @var DeliveryInformation $deliveryInformation */
-                $deliveryInformation->setType("SHIPPING");
-                $deliveryInformation->setPickupLocation(null);
-            }
+            $this->useWarehouse($cart, $deliveryInformation);
         } else {
             if ($cart != null) {
-                $newItems = [];
-                $weight = 0;
-                foreach ($cart->getItems() as $item) {
-                    /** @var Item $item */
-                    if ("EVENT" === $item->getType()) {
-                        if ($storeToSwitchTo->hasItem($item)) {
-                            $cart->markAsUnavailable($item);
-                            $newItems[] = $storeToSwitchTo->getItem($item->getName());
-                        } else {
-                            $cart->markAsUnavailable($item);
-                        }
-                    } else if (! $storeToSwitchTo->hasItem($item)) {
-                        $cart->markAsUnavailable($item);
-                    }
-                    $weight += $item->getWeight();
-                }
 
-                foreach ($cart->getUnavailableItems() as $unavailableItem) {
-                    /** @var Item $unavailableItem */
-                    $weight -= $unavailableItem->getWeight();
-                }
+                $weight = 0;
+                $updateItemsAndWeight = $cart->switchItems($weight, $storeToSwitchTo);
+                $newItems = $updateItemsAndWeight['newItems'];
+                $weight = $updateItemsAndWeight['weight'];
+
+
+                $weight = $cart->reduceWeight($weight);
 
                 /** @var DeliveryInformation $deliveryInformation */
                 /** @var Store $currentStore */
-                $currentStore = $this->session["STORE"];
-                if ($deliveryInformation != null
-                    && $deliveryInformation->getType() != null
-                    && "HOME_DELIVERY" === $deliveryInformation->getType()
-                    && $deliveryInformation->getDeliveryAddress() != null) {
-                    if (! $this->session["LOCATION_SERVICE"]->isWithinDeliveryRange($storeToSwitchTo, $deliveryInformation->getDeliveryAddress())) {
-                        $deliveryInformation->setType("PICKUP");
-                        $deliveryInformation->setPickupLocation($currentStore);
-                    } else {
-                        $deliveryInformation->setTotalWeight($weight);
-                        $deliveryInformation->setPickupLocation($storeToSwitchTo);
-                    }
-                } else {
-                    if ($deliveryInformation != null
-                        && $deliveryInformation->getDeliveryAddress() != null) {
-                        if ($this->session["LOCATION_SERVICE"]->isWithinDeliveryRange($storeToSwitchTo, $deliveryInformation->getDeliveryAddress())) {
-                            $deliveryInformation->setType("HOME_DELIVERY");
-                            $deliveryInformation->setTotalWeight($weight);
-                            $deliveryInformation->setPickupLocation($storeToSwitchTo);
 
-                        }
-                    }
-                }
+                $result = $this->validateDeliveryInfo($cart, $storeToSwitchTo, $weight);
+                $storeToSwitchTo = $result['storeToSwitchTo'];
+                $cart = $result['cart'];
                 foreach ($newItems as $item) {
                     $cart->addItem($item);
                 }
             }
+
+            $this->session->put("STORE", $storeToSwitchTo);
         }
-        $this->session["STORE"] = $storeToSwitchTo;
-        $this->session->saveAll();
+
+        // $this->session["STORE"] = $storeToSwitchTo;
+        // $this->session->saveAll();
+
+    }
+
+    private function validateDeliveryInfo(Cart $cart, Store $storeToSwitchTo, int $weight)
+    {
+        $deliveryInformation = $cart->getDeliveryInformation();
+        $currentStore = $deliveryInformation->getStore();
+        $locationService = $this->session->get('LOCATION_SERVICE');
+        $address = $deliveryInformation->getDeliveryAddress();
+
+        if ($deliveryInformation instanceof HomeDelivery) {
+
+            //if the delivery isnt nearby, they need to pick up 
+            if (! $locationService->isWithinDeliveryRange($storeToSwitchTo, $address)) {
+
+                $deliveryInformation = new Pickup($currentStore, $weight);
+
+                $cart->setDeliveryInformation($deliveryInformation);
+            } else {
+                $deliveryInformation->setTotalWeight($weight);
+                $deliveryInformation->setPickupLocation($storeToSwitchTo);
+            }
+        } else {
+            // $address = $deliveryInformation->getDeliveryAddress();
+
+            if ($locationService->isWithinDeliveryRange($storeToSwitchTo, $address)) {
+
+                $deliveryInfo = new HomeDelivery($storeToSwitchTo, $weight);
+                $cart->setDeliveryInformation($deliveryInfo);
+            }
+        }
+
+        return [
+            'cart' => $cart,
+            'storeToSwitchTo' => $storeToSwitchTo,
+        ];
+    }
+
+    private function useWarehouse(Cart $cart, $deliveryInformation)
+    {
+     
+
+        if ($cart != null) {
+            //any store events are marked as unavailable
+
+            $filteredItems = array_values(array_filter($cart->getItems(), function ($cartItem, $key) {
+                return $cartItem instanceof StoreEvent;
+            }, ARRAY_FILTER_USE_BOTH));
+
+            foreach ($filteredItems as $item) {
+                $cart->markAsUnavailable($item);
+            }
+           
+        }
+        if ($deliveryInformation != null) {
+            /** @var DeliveryInformation $deliveryInformation */
+
+            //ship to warehouse
+            $deliveryInformation = new Shipping();
+
+            $cart->setDeliveryInformation($deliveryInformation);
+
+        }
     }
 
     /**
