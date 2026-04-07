@@ -39,7 +39,7 @@ class OnlineShopping
      *
      * @param Store|null $storeToSwitchTo
      */
-    public function switchStore(Store $storeToSwitchTo = null)
+    public function switchStore(?Store $storeToSwitchTo = null)
     {
         /** @var Cart $cart */
         $cart = $this->session["CART"];
