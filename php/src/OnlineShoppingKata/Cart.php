@@ -1,7 +1,5 @@
 <?php
-
 namespace App\OnlineShoppingKata;
-
 /**
  * Class Cart
  * @package OnlineShoppingKata
@@ -12,9 +10,7 @@ class Cart implements ModelObject
 {
     private $items = [];
     private $unavailableItems = [];
-
     private $deliveryInformation;
-
     /**
      * each cart is delivered somehow 
      * (Home, pickup or shipping)
@@ -24,22 +20,18 @@ class Cart implements ModelObject
     {
         $this->deliveryInformation = $deliveryInformation;
     }
-
     public function getTotalWeight()
     {
         $total = 0;
         foreach ($this->items as $item) {
             $total += $item->getWeight();
         }
-
         return $total;
     }
-
     public function getDeliveryInformation()
     {
         return $this->deliveryInformation;
     }
-
     /**
      * @return Item[]|array
      */
@@ -47,7 +39,6 @@ class Cart implements ModelObject
     {
         return $this->items;
     }
-
     /**
      * @param Item $item
      */
@@ -55,7 +46,6 @@ class Cart implements ModelObject
     {
         $this->items[] = $item;
     }
-
     /**
      * @param Item[] $items
      */
@@ -65,7 +55,6 @@ class Cart implements ModelObject
             $this->items[] = $item;
         }
     }
-
     /**
      * @param Item $item
      */
@@ -73,7 +62,6 @@ class Cart implements ModelObject
     {
         $this->unavailableItems[] = $item;
     }
-
     /**
      * @return string
      */
@@ -84,7 +72,6 @@ class Cart implements ModelObject
             "unavailable=" . $this->displayItems($this->unavailableItems) .
             '}';
     }
-
     /**
      * @param $items
      * @return string
@@ -96,10 +83,8 @@ class Cart implements ModelObject
             /** @var $item Item */
             $itemDisplay .= $item . "\n";
         }
-
         return $itemDisplay;
     }
-
     /**
      * @throws UnsupportedOperationException
      */
@@ -107,7 +92,6 @@ class Cart implements ModelObject
     {
         throw new UnsupportedOperationException("missing from this exercise - shouldn't be called from a unit test");
     }
-
     /**
      * @return Item[]|array
      */
@@ -115,7 +99,6 @@ class Cart implements ModelObject
     {
         return $this->unavailableItems;
     }
-
     public function reduceWeight($weight)
     {
         foreach ($this->getUnavailableItems() as $unavailableItem) {
@@ -124,35 +107,23 @@ class Cart implements ModelObject
         }
         return $weight;
     }
-
     public function switchItems(int $weight, Store $newStore)
     {
-
         $newItems = [];
-
-
-
         foreach ($this->getItems() as $item) {
-
-
-
             /** @var Item $item */
             if ($item instanceof StoreEvent && $newStore->hasItem($item)) {
                 // if ($item->getType() === "EVENT") {
-
                 $this->markAsUnavailable($item);
                 //put the $item in the new store
                 $newItems[] = $newStore->getItem($item->getName());
             } else if ($item instanceof StoreEvent) {
                 $this->markAsUnavailable($item);
-            } else if (! $newStore->hasItem($item)) {
-
+            } else if (!$newStore->hasItem($item)) {
                 $this->markAsUnavailable($item);
             }
-
             $weight += $item->getWeight();
         }
-
         return [
             'weight' => $weight,
             'newItems' => $newItems,
